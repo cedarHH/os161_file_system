@@ -82,6 +82,11 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
+	// 初始化文件描述符表
+    for (int i = 0; i < MAX_FILES_PER_PROCESS; i++) {
+        proc->file_table[i] = NULL;
+    }
+
 	return proc;
 }
 

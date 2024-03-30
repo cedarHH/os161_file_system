@@ -32,7 +32,12 @@
 
 
 #include <cdefs.h> /* for __DEAD */
+#include <file.h>  /* for file_handle */
 struct trapframe; /* from <machine/trapframe.h> */
+
+int allocate_fd_for_current_proc(struct file_handle* fh);
+int sys_open(const char *filename, int flags, int mode, int *retval);
+ssize_t sys_write(int fd, const void *buf, size_t nbytes);
 
 /*
  * The system call dispatcher.

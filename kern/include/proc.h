@@ -29,7 +29,7 @@
 
 #ifndef _PROC_H_
 #define _PROC_H_
-
+#define MAX_FILES_PER_PROCESS 32 // 或其他合适的最大值
 /*
  * Definition of a process.
  *
@@ -41,6 +41,7 @@
 struct addrspace;
 struct thread;
 struct vnode;
+struct file_handle;
 
 /*
  * Process structure.
@@ -71,6 +72,7 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
+    struct file_handle *file_table[MAX_FILES_PER_PROCESS];
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
