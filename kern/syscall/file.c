@@ -79,6 +79,52 @@ int sys_open(const char *filename, int flags, int mode, int *retval) {
     return 0; // 成功
 }
 
+ssize_t sys_read(int fd, void *buf, size_t buflen) {
+    // 检查文件描述符的有效性
+    if (fd < 0 || fd >= OPEN_MAX) {
+        return -EBADF;
+    }
+
+    // 获取当前进程的文件表
+    struct file_handle *fh = curproc->file_table[fd];
+    if (fh == NULL) {
+        return -EBADF;
+    }
+
+    // 检查文件是否以读方式打开
+    if ((fh->fh_flags & O_ACCMODE) == O_WRONLY) {
+        return -EBADF;
+    }
+
+    // 准备 uio 结构体，以用户空间模式从当前文件偏移量开始读取
+    struct iovec iov;
+    struct uio u;
+    iov.iov_ubase = (userptr_t)buf;
+    iov.iov_len = buflen;
+    u.uio_iov = &iov;
+    u.uio_iovcnt = 1;
+    u.uio_offset = fh->fh_offset;
+    u.uio_resid = buflen;
+    u.uio_segflg = UIO_USERSPACE;
+    u.uio_rw = UIO_READ;
+    u.uio_space = curproc->p_addrspace;
+
+    // 获取锁以保证读操作的原子性
+    lock_acquire(fh->fh_lock);
+    int result = VOP_READ(fh->fh_vnode, &u);
+    lock_release(fh->fh_lock);
+
+    if (result) {
+        return -EIO;
+    }
+
+    // 计算实际读取的字节数，并更新文件偏移量
+    ssize_t bytes_read = buflen - u.uio_resid;
+    fh->fh_offset += bytes_read;
+
+    return bytes_read;
+}
+
 ssize_t sys_write(int fd, const void *buf, size_t nbytes) {
     if (fd < 0 || fd >= OPEN_MAX) {
         return -EBADF; // fd 不合法
@@ -122,4 +168,38 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes) {
     fh->fh_offset += bytes_written; // 更新文件偏移量
 
     return bytes_written;
+}
+
+int sys_close(int fd) {
+    // 检查文件描述符的有效性
+    if (fd < 0 || fd >= OPEN_MAX) {
+        return -EBADF;
+    }
+
+    // 获取当前进程的文件表
+    struct file_handle *fh = curproc->file_table[fd];
+    if (fh == NULL) {
+        return -EBADF;
+    }
+
+    // 加锁以同步对文件句柄的操作
+    lock_acquire(fh->fh_lock);
+
+    // 减少文件句柄的引用计数
+    fh->fh_refcount--;
+
+    // 如果没有更多的引用，释放文件句柄和相关资源
+    if (fh->fh_refcount == 0) {
+        vfs_close(fh->fh_vnode);
+        lock_release(fh->fh_lock);
+        lock_destroy(fh->fh_lock);
+        kfree(fh);
+    } else {
+        lock_release(fh->fh_lock);
+    }
+
+    // 清除文件描述符表中的条目
+    curproc->file_table[fd] = NULL;
+
+    return 0; // 成功
 }

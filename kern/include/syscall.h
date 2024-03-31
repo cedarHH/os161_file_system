@@ -30,14 +30,9 @@
 #ifndef _SYSCALL_H_
 #define _SYSCALL_H_
 
-
 #include <cdefs.h> /* for __DEAD */
 #include <file.h>  /* for file_handle */
 struct trapframe; /* from <machine/trapframe.h> */
-
-int allocate_fd_for_current_proc(struct file_handle* fh);
-int sys_open(const char *filename, int flags, int mode, int *retval);
-ssize_t sys_write(int fd, const void *buf, size_t nbytes);
 
 /*
  * The system call dispatcher.
@@ -52,10 +47,11 @@ void syscall(struct trapframe *tf);
 /* Helper for fork(). You write this. */
 void enter_forked_process(struct trapframe *tf);
 
+int allocate_fd_for_current_proc(struct file_handle* fh);
+
 /* Enter user mode. Does not return. */
 __DEAD void enter_new_process(int argc, userptr_t argv, userptr_t env,
 		       vaddr_t stackptr, vaddr_t entrypoint);
-
 
 /*
  * Prototypes for IN-KERNEL entry points for system call implementations.
@@ -63,5 +59,9 @@ __DEAD void enter_new_process(int argc, userptr_t argv, userptr_t env,
 
 int sys_reboot(int code);
 int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
+int sys_open(const char *filename, int flags, int mode, int *retval);
+ssize_t sys_read(int fd, void *buf, size_t buflen);
+ssize_t sys_write(int fd, const void *buf, size_t nbytes);
+int sys_close(int fd);
 
 #endif /* _SYSCALL_H_ */

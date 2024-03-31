@@ -109,6 +109,53 @@ syscall(struct trapframe *tf)
 				 (userptr_t)tf->tf_a1);
 		break;
 
+		case SYS_open:
+        err = sys_open((const char *)tf->tf_a0, tf->tf_a1, tf->tf_a2, &retval);
+        break;
+
+		case SYS_read:
+        // 直接调用 sys_read，传递期望的参数
+        retval = sys_read(tf->tf_a0, (void *)tf->tf_a1, tf->tf_a2);
+        if (retval >= 0) {
+            // 读操作成功，retval 包含读取的字节数
+            tf->tf_v0 = retval;
+            tf->tf_a3 = 0; // 成功
+            err = 0;
+        } else {
+            // 读操作失败，retval 是负的错误代码
+            tf->tf_v0 = retval;
+            tf->tf_a3 = 1; // 失败
+            err = 1;
+        }
+        break;
+
+		case SYS_write:
+		// 直接调用 sys_write，传递三个期望的参数
+		retval = sys_write(tf->tf_a0, (const void *)tf->tf_a1, tf->tf_a2);
+		if (retval >= 0) {
+			// 写操作成功，retval 包含写入的字节数
+			tf->tf_v0 = retval;
+			tf->tf_a3 = 0; // 成功
+			err = 0;
+		} else {
+			// 写操作失败，retval 是负的错误代码
+			tf->tf_v0 = retval;
+			tf->tf_a3 = 1; // 失败
+			err = 1;
+		}
+		break;
+
+		case SYS_close:
+		err = sys_close(tf->tf_a0);
+		if (err == 0) {
+			tf->tf_v0 = 0; // 成功
+			tf->tf_a3 = 0;
+		} else {
+			tf->tf_v0 = err; // 错误码
+			tf->tf_a3 = 1; // 失败
+		}
+		break;
+
         case SYS__exit:
                 kprintf("exit() was called, but it's unimplemented.\n");
                 kprintf("This is expected if your user-level program has finished.\n");
