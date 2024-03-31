@@ -51,6 +51,56 @@
  *
  * Calls vfs_open on progname and thus may destroy it.
  */
+
+struct file_handle *create_file_handle(struct vnode *vn, int flags);
+
+struct file_handle *create_file_handle(struct vnode *vn, int flags) {
+    struct file_handle *fh = kmalloc(sizeof(struct file_handle));
+    if (fh == NULL) {
+        return NULL;
+    }
+
+    fh->fh_vnode = vn;
+    fh->fh_offset = 0;
+    fh->fh_flags = flags;
+    fh->fh_refcount = 1;
+    // fh->fh_lock = lock_create("file handle lock");
+    // if (fh->fh_lock == NULL) {
+    //     kfree(fh);
+    //     return NULL;
+    // }
+
+    return fh;
+}
+
+// 初始化标准输入/输出/错误
+static void initialize_standard_io(struct proc *proc) {
+    char con_path[] = "con:";
+    struct vnode *v;
+    int result;
+
+    // 初始化 stdout 和 stderr
+    for (int fd = 1; fd <= 2; fd++) {
+        result = vfs_open(con_path, O_WRONLY, 0, &v);
+        if (result) {
+            // 处理错误情况
+            return;
+        }
+
+        struct file_handle *fh = create_file_handle(v, O_WRONLY);
+        if (fh == NULL) {
+            vfs_close(v);
+            // 处理错误情况
+            return;
+        }
+
+        proc->file_table[fd] = fh;
+    }
+
+    // stdin 可以留空或根据需要指向特定输入
+    // 如果需要，这里可以重复上述步骤，但使用 O_RDONLY 和相应的处理
+}
+
 int
 runprogram(char *progname)
 {
@@ -89,6 +139,8 @@ runprogram(char *progname)
 
 	/* Done with the file now. */
 	vfs_close(v);
+
+	initialize_standard_io(curproc);
 
 	/* Define the user stack in the address space */
 	result = as_define_stack(as, &stackptr);

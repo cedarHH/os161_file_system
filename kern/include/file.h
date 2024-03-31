@@ -20,7 +20,7 @@ struct file_handle {
     off_t fh_offset;        // 文件当前的偏移量
     int fh_flags;           // 打开文件时使用的标志，如O_RDONLY
     int fh_refcount;        // 引用计数，用于dup2等操作
-    struct lock *fh_lock;   // 文件操作的互斥锁
+    // struct lock *fh_lock;   // 文件操作的互斥锁
 };
 
 #endif /* _FILE_H_ */

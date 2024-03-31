@@ -58,19 +58,19 @@ int sys_open(const char *filename, int flags, int mode, int *retval) {
     fh->fh_offset = 0; // 默认从文件开头开始
     fh->fh_flags = flags;
     fh->fh_refcount = 1;
-    fh->fh_lock = lock_create(kfilename);
-    if (fh->fh_lock == NULL) {
-        vfs_close(vn);
-        kfree(fh);
-        return ENOMEM;
-    }
+    // fh->fh_lock = lock_create(kfilename);
+    // if (fh->fh_lock == NULL) {
+    //     vfs_close(vn);
+    //     kfree(fh);
+    //     return ENOMEM;
+    // }
 
     // 第四步：分配文件描述符
     // 这里假设有一个为当前进程分配文件描述符的函数
     fd = allocate_fd_for_current_proc(fh);
     if (fd < 0) {
         vfs_close(vn);
-        lock_destroy(fh->fh_lock);
+        // lock_destroy(fh->fh_lock);
         kfree(fh);
         return EMFILE; // 太多打开的文件
     }
@@ -110,9 +110,9 @@ ssize_t sys_read(int fd, void *buf, size_t buflen) {
     u.uio_space = curproc->p_addrspace;
 
     // 获取锁以保证读操作的原子性
-    lock_acquire(fh->fh_lock);
+    // lock_acquire(fh->fh_lock);
     int result = VOP_READ(fh->fh_vnode, &u);
-    lock_release(fh->fh_lock);
+    // lock_release(fh->fh_lock);
 
     if (result) {
         return -EIO;
@@ -156,9 +156,9 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes) {
     u.uio_rw = UIO_WRITE;
     u.uio_space = curproc->p_addrspace;
 
-    lock_acquire(fh->fh_lock); // 确保写操作的原子性
+    // lock_acquire(fh->fh_lock); // 确保写操作的原子性
     int result = VOP_WRITE(fh->fh_vnode, &u);
-    lock_release(fh->fh_lock);
+    // lock_release(fh->fh_lock);
 
     if (result) {
         return -EIO; // 写入过程中出错
@@ -183,7 +183,7 @@ int sys_close(int fd) {
     }
 
     // 加锁以同步对文件句柄的操作
-    lock_acquire(fh->fh_lock);
+    // lock_acquire(fh->fh_lock);
 
     // 减少文件句柄的引用计数
     fh->fh_refcount--;
@@ -191,11 +191,11 @@ int sys_close(int fd) {
     // 如果没有更多的引用，释放文件句柄和相关资源
     if (fh->fh_refcount == 0) {
         vfs_close(fh->fh_vnode);
-        lock_release(fh->fh_lock);
-        lock_destroy(fh->fh_lock);
+        // lock_release(fh->fh_lock);
+        // lock_destroy(fh->fh_lock);
         kfree(fh);
     } else {
-        lock_release(fh->fh_lock);
+        // lock_release(fh->fh_lock);
     }
 
     // 清除文件描述符表中的条目
