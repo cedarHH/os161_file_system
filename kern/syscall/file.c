@@ -221,9 +221,11 @@ off_t sys_lseek(int fd, off_t pos, int whence){
 
     vnode = fileHandle->fh_vnode;
 
-    int err = VOP_STAT(vnode, &file_stat);
-    if (err) {
-        return err;
+    if (VOP_STAT(vnode, &file_stat)) {
+        return -EBADF;
+    }
+    if (!VOP_ISSEEKABLE(vnode)) {
+        return -ESPIPE;
     }
 
     switch (whence) {
@@ -248,6 +250,27 @@ off_t sys_lseek(int fd, off_t pos, int whence){
     return offset;
 }
 
-// int sys_dup2(int old_fd, int new_fd){
-//     return 1;
-// }
+int sys_dup2(int old_fd, int new_fd){
+    struct file_handle *fileHandle;
+
+    fileHandle = curproc->file_table[old_fd];
+    if (old_fd < 0 || old_fd >= OPEN_MAX || fileHandle == NULL) {
+        return -EBADF;
+
+    }
+    if (new_fd < 0 || new_fd >= OPEN_MAX) {
+        return -EBADF;
+    }
+    
+    if (old_fd == new_fd) {
+        return new_fd;
+    }
+
+    fileHandle = curproc->file_table[new_fd];
+    if (fileHandle != NULL) {
+        sys_close(new_fd);
+    }
+    fileHandle = curproc->file_table[old_fd];
+    fileHandle->fh_refcount += 1;
+    return new_fd;
+}

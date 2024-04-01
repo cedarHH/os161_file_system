@@ -122,7 +122,6 @@ syscall(struct trapframe *tf)
         // 直接调用 sys_read，传递期望的参数
         retval = sys_read(tf->tf_a0, (void *)tf->tf_a1, tf->tf_a2);
         if (retval < 0)  {
-            // 读操作失败，retval 是负的错误代码
             err = -retval;
         }
         break;
@@ -131,7 +130,6 @@ syscall(struct trapframe *tf)
 		// 直接调用 sys_write，传递三个期望的参数
 		retval = sys_write(tf->tf_a0, (const void *)tf->tf_a1, tf->tf_a2);
 		if (retval < 0) {
-			// 写操作失败，retval 是负的错误代码
 			err = -retval;
 		}
 		break;
@@ -166,7 +164,12 @@ syscall(struct trapframe *tf)
             break;
         }
 
-
+        case SYS_dup2:
+            retval = sys_dup2((int)tf->tf_a0,(int)tf->tf_a1);
+            if (retval < 0) {
+                err = -retval;
+            }
+            break;
 
         case SYS__exit:
                 kprintf("exit() was called, but it's unimplemented.\n");
