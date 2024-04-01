@@ -251,10 +251,10 @@ off_t sys_lseek(int fd, off_t pos, int whence){
 }
 
 int sys_dup2(int old_fd, int new_fd){
-    struct file_handle *fileHandle;
+    struct file_handle *oldFileHandle;
 
-    fileHandle = curproc->file_table[old_fd];
-    if (old_fd < 0 || old_fd >= OPEN_MAX || fileHandle == NULL) {
+    oldFileHandle = curproc->file_table[old_fd];
+    if (old_fd < 0 || old_fd >= OPEN_MAX || oldFileHandle == NULL) {
         return -EBADF;
 
     }
@@ -266,11 +266,11 @@ int sys_dup2(int old_fd, int new_fd){
         return new_fd;
     }
 
-    fileHandle = curproc->file_table[new_fd];
-    if (fileHandle != NULL) {
+    
+    if (curproc->file_table[new_fd] != NULL) {
         sys_close(new_fd);
     }
-    fileHandle = curproc->file_table[old_fd];
-    fileHandle->fh_refcount += 1;
+    curproc->file_table[new_fd] = oldFileHandle;
+    curproc->file_table[new_fd]->fh_refcount += 1;
     return new_fd;
 }
