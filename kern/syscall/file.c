@@ -229,7 +229,6 @@ int sys_dup2(int old_fd, int new_fd){
     if (old_fd == new_fd) {
         return new_fd;
     }
-
     
     if (curproc->file_table[new_fd] != NULL) {
         sys_close(new_fd);
