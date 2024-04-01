@@ -16,11 +16,10 @@
  */
 
 struct file_handle {
-    struct vnode *fh_vnode; // 指向文件的vnode结构
-    off_t fh_offset;        // 文件当前的偏移量
-    int fh_flags;           // 打开文件时使用的标志，如O_RDONLY
-    int fh_refcount;        // 引用计数，用于dup2等操作
-    // struct lock *fh_lock;   // 文件操作的互斥锁
+    struct vnode *fh_vnode; /* vnode is a virtual node structure that represents a file in the file system */
+    off_t fh_offset;        /* current offset of the file is updated to reflect the current read or write position */
+    int fh_flags;           /* indicate flags used when opening a file, which determine how the file is accessed */
+    int fh_refcount;        /* managing memory life cycles. When fh_refcount reaches 0, the kernel can free the resources. */
 };
 
 #endif /* _FILE_H_ */

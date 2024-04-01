@@ -112,6 +112,7 @@ syscall(struct trapframe *tf)
 		break;
 
 		case SYS_open:
+			/* tell complier tf_a0 is a pointer to char data */
             retval = sys_open((const char *)tf->tf_a0, tf->tf_a1, tf->tf_a2, &retval);
             if (retval < 0) {
                 err = -retval;
@@ -119,27 +120,25 @@ syscall(struct trapframe *tf)
             break;
 
 		case SYS_read:
-        // 直接调用 sys_read，传递期望的参数
-        retval = sys_read(tf->tf_a0, (void *)tf->tf_a1, tf->tf_a2);
-        if (retval < 0)  {
-            err = -retval;
-        }
-        break;
+			retval = sys_read(tf->tf_a0, (void *)tf->tf_a1, tf->tf_a2);
+			if (retval < 0)  {
+				err = -retval;
+			}
+			break;
 
 		case SYS_write:
-		// 直接调用 sys_write，传递三个期望的参数
-		retval = sys_write(tf->tf_a0, (const void *)tf->tf_a1, tf->tf_a2);
-		if (retval < 0) {
-			err = -retval;
-		}
-		break;
+			retval = sys_write(tf->tf_a0, (const void *)tf->tf_a1, tf->tf_a2);
+			if (retval < 0) {
+				err = -retval;
+			}
+			break;
 
 		case SYS_close:
-		retval = sys_close(tf->tf_a0);
-		if (retval < 0) {
-			err = -retval;
-		}
-		break;
+			retval = sys_close(tf->tf_a0);
+			if (retval < 0) {
+				err = -retval;
+			}
+			break;
 
         case SYS_lseek: {
             uint64_t pos;   //aligned pairs of registers
@@ -175,8 +174,6 @@ syscall(struct trapframe *tf)
                 kprintf("exit() was called, but it's unimplemented.\n");
                 kprintf("This is expected if your user-level program has finished.\n");
                 panic("Can't continue further until sys_exit() is implemented");
-
-	    /* Add stuff here */
 
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
