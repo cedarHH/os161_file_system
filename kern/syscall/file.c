@@ -38,7 +38,7 @@ int sys_open(const char *filename, int flags, int mode, int *retval) {
     char kfilename[PATH_MAX];
     result = copyinstr((const_userptr_t)filename, kfilename, sizeof(kfilename), NULL);
     if (result) {
-        return result; // 如果复制失败，返回错误
+        return -result; // 如果复制失败，返回错误
     }
 
     // 第二步：打开文件
@@ -51,7 +51,7 @@ int sys_open(const char *filename, int flags, int mode, int *retval) {
     fh = kmalloc(sizeof(*fh));
     if (fh == NULL) {
         vfs_close(vn);
-        return ENOMEM;
+        return -ENOMEM;
     }
 
     fh->fh_vnode = vn;
@@ -72,7 +72,7 @@ int sys_open(const char *filename, int flags, int mode, int *retval) {
         vfs_close(vn);
         // lock_destroy(fh->fh_lock);
         kfree(fh);
-        return EMFILE; // 太多打开的文件
+        return -EMFILE; // 太多打开的文件
     }
 
     *retval = fd; // 设置返回值为文件描述符
@@ -203,3 +203,51 @@ int sys_close(int fd) {
 
     return 0; // 成功
 }
+
+
+off_t sys_lseek(int fd, off_t pos, int whence){   
+    struct vnode *vnode;
+    struct file_handle *fileHandle;
+    off_t offset;
+    struct stat file_stat;
+
+    if (fd < 0 || fd >= OPEN_MAX) {
+        return -EBADF;
+    }
+    fileHandle = curproc->file_table[fd];
+    if (fileHandle == NULL){
+        return -EBADF;
+    }
+
+    vnode = fileHandle->fh_vnode;
+
+    int err = VOP_STAT(vnode, &file_stat);
+    if (err) {
+        return err;
+    }
+
+    switch (whence) {
+        case SEEK_SET:
+            offset = pos;
+            break;
+        case SEEK_CUR:
+            offset = fileHandle->fh_offset + pos;
+            break;
+        case SEEK_END:
+            offset = file_stat.st_size + pos;
+            break;
+        default:
+            return -EINVAL;
+    }
+
+    if (offset < 0) {
+        return -EINVAL;
+    }
+
+    fileHandle->fh_offset = offset;
+    return offset;
+}
+
+// int sys_dup2(int old_fd, int new_fd){
+//     return 1;
+// }

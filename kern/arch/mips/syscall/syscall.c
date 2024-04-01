@@ -35,7 +35,8 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
-
+#include <copyinout.h>
+#include <endian.h>
 
 /*
  * System call dispatcher.
@@ -98,6 +99,7 @@ syscall(struct trapframe *tf)
 	 */
 
 	retval = 0;
+    err = 0;
 
 	switch (callno) {
 	    case SYS_reboot:
@@ -110,51 +112,61 @@ syscall(struct trapframe *tf)
 		break;
 
 		case SYS_open:
-        err = sys_open((const char *)tf->tf_a0, tf->tf_a1, tf->tf_a2, &retval);
-        break;
+            retval = sys_open((const char *)tf->tf_a0, tf->tf_a1, tf->tf_a2, &retval);
+            if (retval < 0) {
+                err = -retval;
+            }
+            break;
 
 		case SYS_read:
         // 直接调用 sys_read，传递期望的参数
         retval = sys_read(tf->tf_a0, (void *)tf->tf_a1, tf->tf_a2);
-        if (retval >= 0) {
-            // 读操作成功，retval 包含读取的字节数
-            tf->tf_v0 = retval;
-            tf->tf_a3 = 0; // 成功
-            err = 0;
-        } else {
+        if (retval < 0)  {
             // 读操作失败，retval 是负的错误代码
-            tf->tf_v0 = retval;
-            tf->tf_a3 = 1; // 失败
-            err = 1;
+            err = -retval;
         }
         break;
 
 		case SYS_write:
 		// 直接调用 sys_write，传递三个期望的参数
 		retval = sys_write(tf->tf_a0, (const void *)tf->tf_a1, tf->tf_a2);
-		if (retval >= 0) {
-			// 写操作成功，retval 包含写入的字节数
-			tf->tf_v0 = retval;
-			tf->tf_a3 = 0; // 成功
-			err = 0;
-		} else {
+		if (retval < 0) {
 			// 写操作失败，retval 是负的错误代码
-			tf->tf_v0 = retval;
-			tf->tf_a3 = 1; // 失败
-			err = 1;
+			err = -retval;
 		}
 		break;
 
 		case SYS_close:
-		err = sys_close(tf->tf_a0);
-		if (err == 0) {
-			tf->tf_v0 = 0; // 成功
-			tf->tf_a3 = 0;
-		} else {
-			tf->tf_v0 = err; // 错误码
-			tf->tf_a3 = 1; // 失败
+		retval = sys_close(tf->tf_a0);
+		if (retval < 0) {
+			err = -retval;
 		}
 		break;
+
+        case SYS_lseek: {
+            uint64_t pos;   //aligned pairs of registers
+            off_t retval64; 
+            int whence;
+            uint32_t temp;
+
+            join32to64(tf->tf_a2, tf->tf_a3, &pos);; //a2<<32|a3  a2:a3
+            err = copyin((const userptr_t)tf->tf_sp + 16, &whence, sizeof(int));
+		    if(err) break;
+            retval64 = sys_lseek((int)tf->tf_a0, (off_t)pos, whence);
+            if (retval64 >= 0) {
+                split64to32(retval64, &temp, &tf->tf_v1);
+                retval = temp;
+                err = 0;
+            }
+            else {
+                split64to32((uint64_t)retval64, &temp, &tf->tf_v1);
+                retval = temp;
+                err = 1;
+            }
+            break;
+        }
+
+
 
         case SYS__exit:
                 kprintf("exit() was called, but it's unimplemented.\n");
